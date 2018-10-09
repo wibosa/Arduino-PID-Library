@@ -18,11 +18,11 @@ class PPID
 
   //commonly used functions **************************************************************************
     PPID(double*, double*, double*,        // * constructor.  links the PPID to the Input, Output, and 
-        double, double, double, int, int);//   Setpoint.  Initial tuning parameters are also set here.
+        double, int, int);//   Setpoint.  Initial tuning parameters are also set here.
                                           //   (overload for specifying proportional mode)
 
     PPID(double*, double*, double*,        // * constructor.  links the PPID to the Input, Output, and 
-        double, double, double, int);     //   Setpoint.  Initial tuning parameters are also set here
+        double,  int);     //   Setpoint.  Initial tuning parameters are also set here
 	
     void SetMode(int Mode);               // * sets PPID to either Manual (0) or Auto (non-0)
 
@@ -38,11 +38,9 @@ class PPID
 
 
   //available but not commonly used functions ********************************************************
-    void SetTunings(double, double,       // * While most users will set the tunings once in the 
-                    double);         	    //   constructor, this function gives the user the option
+    void SetTunings(double);         	    //   constructor, this function gives the user the option
                                           //   of changing tunings during runtime for Adaptive control
-    void SetTunings(double, double,       // * overload for specifying proportional mode
-                    double, int);         	  
+    void SetTunings(double, int);         	  
 
 	void SetControllerDirection(int);	  // * Sets the Direction, or "Action" of the controller. DIRECT
 										  //   means the output will increase when error is positive. REVERSE
@@ -54,22 +52,16 @@ class PPID
 										  
 										  
   //Display functions ****************************************************************
-	double GetKp();						  // These functions query the pid for interal values.
-	double GetKi();						  //  they were created mainly for the pid front-end,
-	double GetKd();						  // where it's important to know what is actually 
+	double GetKc();						  // These functions query the pid for interal values.
 	int GetMode();						  //  inside the PPID.
 	int GetDirection();					  //
 
   private:
 	void Initialize();
 	
-	double dispKp;				// * we'll hold on to the tuning parameters in user-entered 
-	double dispKi;				//   format for display purposes
-	double dispKd;				//
+	double dispKc;				// * we'll hold on to the tuning parameters in user-entered 
     
-	double kp;                  // * (P)roportional Tuning Parameter
-    double ki;                  // * (I)ntegral Tuning Parameter
-    double kd;                  // * (D)erivative Tuning Parameter
+	double kc;                  // * (P)roportional Tuning Parameter
 
 	int controllerDirection;
 	int pOn;
@@ -79,10 +71,10 @@ class PPID
     double *mySetpoint;           //   PPID, freeing the user from having to constantly tell us
                                   //   what these values are.  with pointers we'll just know.
 			  
-	unsigned long lastTime;
-	double outputSum, lastInput;
+	//unsigned long lastTime;
+	//double outputSum, lastInput;
 
-	unsigned long SampleTime;
+	//unsigned long SampleTime;
 	double outMin, outMax;
 	bool inAuto, pOnE;
 	double 		Yr;			// PPID shift	

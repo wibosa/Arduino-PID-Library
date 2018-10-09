@@ -59,8 +59,9 @@ bool PID::Compute()
 {
    if(!inAuto) return false;
    unsigned long now = millis();
-   unsigned long timeChange = (now - lastTime);
-   if(timeChange>=SampleTime)
+   volatile unsigned long timeChange = (now - lastTime);
+   // if(timeChange>=SampleTime)
+	   if ( true ) // call by ISR
    {
       /*Compute all the working error variables*/
       double input = *myInput;

@@ -19,26 +19,26 @@
  *    reliable defaults, so we need to have the user set them.
  ***************************************************************************/
 PPID::PPID(double* Input, double* Output, double* Setpoint,
-        double Kp, double Ki, double Kd, int POn, int ControllerDirection)
+        double Kc, int POn, int ControllerDirection)
 {
     myOutput = Output;
     myInput = Input;
     mySetpoint = Setpoint;
     inAuto = false;
 	// initialise shift array
-				Yr=*mySetpoint;
-				Yt2 = *myInput;
-				Yt1 = *myInput;
-				Yt = *myInput;
+	Yr=*mySetpoint;
+	Yt2 = *myInput;
+	Yt1 = *myInput;
+	Yt = *myInput;
     PPID::SetOutputLimits(0, 255);				//default output limit corresponds to
 												//the arduino pwm limits
 
-    SampleTime = 100;							//default Controller Sample Time is 0.1 seconds
+    //SampleTime = 100;							//default Controller Sample Time is 0.1 seconds
 
     PPID::SetControllerDirection(ControllerDirection);
-    PPID::SetTunings(Kp, Ki, Kd, POn);
+    PPID::SetTunings(Kc, POn);
 
-    lastTime = millis()-SampleTime;
+    //lastTime = millis()-SampleTime;
 }
 
 /*Constructor (...)*********************************************************
@@ -46,9 +46,8 @@ PPID::PPID(double* Input, double* Output, double* Setpoint,
  *    to use Proportional on Error without explicitly saying so
  ***************************************************************************/
 
-PPID::PPID(double* Input, double* Output, double* Setpoint,
-        double Kp, double Ki, double Kd, int ControllerDirection)
-    :PPID::PPID(Input, Output, Setpoint, Kp, Ki, Kd, P_ON_E, ControllerDirection)
+PPID::PPID(double* Input, double* Output, double* Setpoint, double Kc, int ControllerDirection)
+    :PPID::PPID(Input, Output, Setpoint, Kc, P_ON_E, ControllerDirection)
 {
 
 }
@@ -63,51 +62,23 @@ PPID::PPID(double* Input, double* Output, double* Setpoint,
 bool PPID::Compute()
 {
    if(!inAuto) return false;
-   unsigned long now = millis();
-   volatile unsigned long timeChange = (now - lastTime);
-   // if(timeChange>=SampleTime)
-	   if ( true ) // call by ISR
-   { PID:
-      /*Compute all the working error variables*/
-      double input = *myInput;
-      double error = *mySetpoint - input;
-      double dInput = (input - lastInput);
-      outputSum+= (ki * error);
+      //double input = *myInput;
 
-      /*Add Proportional on Measurement, if P_ON_M is specified*/
-      if(!pOnE) outputSum-= kp * dInput;
-
-      if(outputSum > outMax) outputSum= outMax;
-      else if(outputSum < outMin) outputSum= outMin;
-
-      /*Add Proportional on Error, if P_ON_E is specified*/
-	   double output;
-      if(pOnE) output = kp * error;
-      else output = 0;
-
-      /*Compute Rest of PID Output*/
-      output += outputSum - kd * dInput;
   /*PPID control law:
 	  u(t)=u(t-1) + Kpp* ( 0.1 * Yref - 3.6* y(t) + 6* y(t -1) - 2.5* y(t-1));
                 */	
-				Yr  = *mySetpoint;
-				Yt2 = Yt1;
-				Yt1 = Yt;
-				Yt  = *myInput;
+	Yr  = *mySetpoint;
+	Yt2 = Yt1;
+	Yt1 = Yt;
+	Yt  = *myInput;
+			
+	double output = *myOutput + kc *( 0.1 *Yr - 3.6 * Yt + 6 * Yt1 -2.5 * Yt2);
 				
-				output = *myOutput + kp *( 0.1 *Yr - 3.6 * Yt + 6 * Yt1 -2.5 * Yt2);
-				
-	    if(output > outMax) output = outMax;
-      else if(output < outMin) output = outMin;
-	    *myOutput = output;
-
-      /*Remember some variables for next time*/
-      lastInput = input;
-      lastTime = now;
-	 
-	    return true;
-   }
-   else return false;
+	if(output > outMax) output = outMax;
+    else if(output < outMin) output = outMin;
+	*myOutput = output;
+    
+	return true;
 }
 
 /* SetTunings(...)*************************************************************
@@ -115,48 +86,29 @@ bool PPID::Compute()
  * it's called automatically from the constructor, but tunings can also
  * be adjusted on the fly during normal operation
  ******************************************************************************/
-void PPID::SetTunings(double Kp, double Ki, double Kd, int POn)
+void PPID::SetTunings(double Kc, int POn)
 {
-   if (Kp<0 || Ki<0 || Kd<0) return;
+   if (Kc<0 ) return;
 
    pOn = POn;
    pOnE = POn == P_ON_E;
 
-   dispKp = Kp; dispKi = Ki; dispKd = Kd;
-
-   double SampleTimeInSec = ((double)SampleTime)/1000;
-   kp = Kp;
-   ki = Ki * SampleTimeInSec;
-   kd = Kd / SampleTimeInSec;
+   dispKc = Kc;
+   
+   //double SampleTimeInSec = ((double)SampleTime)/1000;
+   kc = Kc;
 
   if(controllerDirection ==REVERSE)
    {
-      kp = (0 - kp);
-      ki = (0 - ki);
-      kd = (0 - kd);
+      kc = (0 - kc);
    }
 }
 
 /* SetTunings(...)*************************************************************
  * Set Tunings using the last-rembered POn setting
  ******************************************************************************/
-void PPID::SetTunings(double Kp, double Ki, double Kd){
-    SetTunings(Kp, Ki, Kd, pOn); 
-}
-
-/* SetSampleTime(...) *********************************************************
- * sets the period, in Milliseconds, at which the calculation is performed
- ******************************************************************************/
-void PPID::SetSampleTime(int NewSampleTime)
-{
-   if (NewSampleTime > 0)
-   {
-      double ratio  = (double)NewSampleTime
-                      / (double)SampleTime;
-      ki *= ratio;
-      kd /= ratio;
-      SampleTime = (unsigned long)NewSampleTime;
-   }
+void PPID::SetTunings(double Kc){
+    SetTunings(Kc); 
 }
 
 /* SetOutputLimits(...)****************************************************
@@ -178,8 +130,6 @@ void PPID::SetOutputLimits(double Min, double Max)
 	   if(*myOutput > outMax) *myOutput = outMax;
 	   else if(*myOutput < outMin) *myOutput = outMin;
 
-	   if(outputSum > outMax) outputSum= outMax;
-	   else if(outputSum < outMin) outputSum= outMin;
    }
 }
 
@@ -204,10 +154,10 @@ void PPID::SetMode(int Mode)
  ******************************************************************************/
 void PPID::Initialize()
 {
-   outputSum = *myOutput;
-   lastInput = *myInput;
-   if(outputSum > outMax) outputSum = outMax;
-   else if(outputSum < outMin) outputSum = outMin;
+   //outputSum = *myOutput;
+   //stInput = *myInput;
+   //if(outputSum > outMax) outputSum = outMax;
+   //else if(outputSum < outMin) outputSum = outMin;
 }
 
 /* SetControllerDirection(...)*************************************************
@@ -220,9 +170,7 @@ void PPID::SetControllerDirection(int Direction)
 {
    if(inAuto && Direction !=controllerDirection)
    {
-	    kp = (0 - kp);
-      ki = (0 - ki);
-      kd = (0 - kd);
+	    kc = (0 - kc);
    }
    controllerDirection = Direction;
 }
@@ -232,9 +180,7 @@ void PPID::SetControllerDirection(int Direction)
  * functions query the internal state of the PPID.  they're here for display
  * purposes.  this are the functions the PPID Front-end uses for example
  ******************************************************************************/
-double PPID::GetKp(){ return  dispKp; }
-double PPID::GetKi(){ return  dispKi;}
-double PPID::GetKd(){ return  dispKd;}
+double PPID::GetKc(){ return  dispKc; }
 int PPID::GetMode(){ return  inAuto ? AUTOMATIC : MANUAL;}
 int PPID::GetDirection(){ return controllerDirection;}
 
